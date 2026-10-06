@@ -25,6 +25,24 @@ python3 app.py --db ./data.db --port 8301
 ## 核心对象
 
 - `athlete`：运动员；`sample`：检测样本；`case`：结果管理案件。
+- `handover`：封条交接记录，把样本与封条号、交接双方串成链。
+- `lab_result`：实验室结果消息（A/B 样、阴阳性、`corrected_from` 复检更正），状态为 `pending → matched / manual`。
+
+## 赛外检查对账链路
+
+赛场无信号时，检查官先在本地完成采集与封条（`sample` 的 `collect` / `seal`），网络恢复后录入实验室结果并对账：
+
+- `POST /api/lab_results`：录入一条实验室结果（可带 `seal_id`，或旧记录带 `athlete_id` + `collected_at`）。
+- `POST /api/reconcile`：对账。按 `seal_id` 匹配样本；封条号缺失时按采样时刻 + 运动员回填匹配；匹配不上（零个或多个）进入 `manual` 人工队列。
+- `POST /api/backfill_seals`：旧样本没有封条号时，按采样时刻 + 运动员从实验室结果回填封条号。
+- `POST /api/lab_results/<id>/actions`，`{"action":"resolve","data":{"sample_id":...}}`：人工队列判不出时指定样本继续。
+
+对账驱动案件链路，全部幂等、服务重启不重复立案 / 重复通知：
+
+- 阳性结果落到样本（`record_result`），自动按结果立 `case` 并临时禁赛；同一结果只立一次案（幂等键 `lab-result:<id>:case`）。
+- 复检更正：阳性→阴性则解除临时禁赛并结案（`no_sanction`）；阳性→阳性则重新确认禁赛（`reconfirm_suspension`）；已结案的新阳性则重开。
+- B 样确认前不能结案：`case` 的 `decide` / `resolve_appeal` 在 `decision=sanction` 时要求样本 `b_confirmed=true`。
+- 对账只处理 `pending` 结果；每一步（立案、通知）都按结果去重，中断后从断点续办。
 
 ## 主要接口
 
