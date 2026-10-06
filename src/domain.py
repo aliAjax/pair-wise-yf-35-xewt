@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 class DomainError(Exception):
@@ -33,6 +33,7 @@ class Role(str, Enum):
     inspector = "inspector"
     lab = "lab"
     panel = "panel"
+    system = "system"
 
 
 @dataclass

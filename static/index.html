@@ -19,10 +19,15 @@
   <pre id="result">等待操作</pre>
   <h2>常用接口</h2>
   <pre>GET  /health
-GET  /api/&lt;kind&gt;
-POST /api/&lt;kind&gt;
+GET  /api/&lt;kind&gt;                         athlete/sample/seal_handover/lab_result/case/...
+POST /api/collection-packets             无信号现场采集包，联网后补传（幂等）
+POST /api/lab-results/ingest             实验室结果上报（report_no+revision 版本化）
+POST /api/reconcile                      按封条号+采样时刻对账，只续办未完成项
+POST /api/backfills/seals                旧记录按运动员+采样时刻回填封条号
+POST /api/manual-reviews/&lt;id&gt;/resolve     人工判读
 GET  /api/entities/&lt;id&gt;
 POST /api/entities/&lt;id&gt;/actions</pre>
+  <p>B 样确认阳性前案件不能结案；结果更正会重新确认临时禁赛；重复对账与服务重启不会重复立案或通知。</p>
 </main>
 <script>
 async function checkHealth() {

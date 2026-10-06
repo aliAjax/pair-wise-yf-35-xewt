@@ -90,10 +90,10 @@ class SQLiteRepository:
     def list_entities(self, kind=None, status=None):
         clauses = []
         params = []
-        if kind:
+        if kind is not None:
             clauses.append("kind = ?")
             params.append(kind)
-        if status:
+        if status is not None:
             clauses.append("status = ?")
             params.append(status)
         where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
@@ -104,10 +104,13 @@ class SQLiteRepository:
         return [self._entity_from_row(row) for row in rows]
 
     def find_entities(self, kind, field, value):
+        if field == "id":
+            entity = self.get_entity(value)
+            return [entity] if entity and entity["kind"] == kind else []
         return [
             entity
             for entity in self.list_entities(kind=kind)
-            if (entity["id"] == value if field == "id" else entity["data"].get(field) == value)
+            if entity["data"].get(field) == value
         ]
 
     def update_entity(self, entity_id, expected_version, status, data):

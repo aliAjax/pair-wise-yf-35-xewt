@@ -118,6 +118,42 @@ def create_handler(service, rules, static_dir):
                         200,
                         service.transition(actor, parts[2], action, data, expected),
                     )
+                # 赛外检查：无信号现场采集包，网络恢复后整包补传（幂等）。
+                if parts == ["api", "collection-packets"]:
+                    return self._send(
+                        201, service.record_collection_packet(self._body(), actor)
+                    )
+                # 实验室结果上报：首报与复检更正按 report_no + revision 版本化。
+                if parts == ["api", "lab-results", "ingest"]:
+                    entity, _duplicate = service.upload_lab_result(self._body(), actor)
+                    return self._send(201, entity)
+                # 网络恢复后对账：按封条号+采样时刻合并，只处理未对完的样本。
+                if parts == ["api", "reconcile"]:
+                    body = self._body()
+                    return self._send(
+                        200,
+                        service.reconcile(actor, result_ids=body.get("result_ids")),
+                    )
+                # 旧记录回填封条号：按采样时刻+运动员，判不出交人工。
+                if parts == ["api", "backfills", "seals"]:
+                    return self._send(200, service.backfill_seals(actor))
+                # 人工判读队列处理。
+                if (len(parts) == 4 and parts[0] == "api"
+                        and parts[1] == "manual-reviews" and parts[3] == "resolve"):
+                    body = self._body()
+                    resolution = body.pop("resolution", None)
+                    if not resolution:
+                        raise ValidationError("resolution is required")
+                    return self._send(
+                        200,
+                        service.resolve_manual_review(
+                            parts[2],
+                            resolution,
+                            actor,
+                            sample_id=body.get("sample_id"),
+                            note=body.get("note"),
+                        ),
+                    )
                 if len(parts) == 4 and parts[0] == "api" and parts[3] == "actions":
                     body = self._body()
                     action = body.pop("action", None)
